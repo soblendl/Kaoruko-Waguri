@@ -1,0 +1,162 @@
+{
+  "users": {
+    "259519355588761@lid": {
+      "economy": {
+        "coins": 0,
+        "bank": 0,
+        "lastDaily": 0,
+        "lastWork": 0,
+        "lastCrime": 0,
+        "lastSlut": 0
+      },
+      "gacha": {
+        "characters": [],
+        "lastClaim": 0,
+        "votes": {}
+      },
+      "stats": {
+        "messages": 10,
+        "commands": 0
+      },
+      "monedas": 0,
+      "antirobo": 0,
+      "desbloqueo": 0
+    },
+    "228874612957325@lid": {
+      "economy": {
+        "coins": 0,
+        "bank": 0,
+        "lastDaily": 0,
+        "lastWork": 0,
+        "lastCrime": 0,
+        "lastSlut": 0
+      },
+      "gacha": {
+        "characters": [],
+        "lastClaim": 0,
+        "votes": {}
+      },
+      "stats": {
+        "messages": 5,
+        "commands": 0
+      },
+      "monedas": 0,
+      "antirobo": 0,
+      "desbloqueo": 0
+    },
+    "145505556394226@lid": {
+      "economy": {
+        "coins": 0,
+        "bank": 0,
+        "lastDaily": 0,
+        "lastWork": 0,
+        "lastCrime": 0,
+        "lastSlut": 0
+      },
+      "gacha": {
+        "characters": [],
+        "lastClaim": 0,
+        "votes": {}
+      },
+      "stats": {
+        "messages": 1,
+        "commands": 0
+      },
+      "monedas": 0,
+      "antirobo": 0,
+      "desbloqueo": 0
+    },
+    "170893057728762@lid": {
+      "economy": {
+        "coins": 0,
+        "bank": 0,
+        "lastDaily": 0,
+        "lastWork": 0,
+        "lastCrime": 0,
+        "lastSlut": 0
+      },
+      "gacha": {
+        "characters": [],
+        "lastClaim": 0,
+        "votes": {}
+      },
+      "stats": {
+        "messages": 4,
+        "commands": 0
+      },
+      "monedas": 0,
+      "antirobo": 0,
+      "desbloqueo": 0
+    },
+    "221741108490463@lid": {
+      "economy": {
+        "coins": 0,
+        "bank": 0,
+        "lastDaily": 0,
+        "lastWork": 0,
+        "lastCrime": 0,
+        "lastSlut": 0
+      },
+      "gacha": {
+        "characters": [],
+        "lastClaim": 0,
+        "votes": {}
+      },
+      "stats": {
+        "messages": 2,
+        "commands": 0
+      },
+      "monedas": 0,
+      "antirobo": 0,
+      "desbloqueo": 0
+    },
+    "12606249156805@lid": {
+      "economy": {
+        "coins": 0,
+        "bank": 0,
+        "lastDaily": 0,
+        "lastWork": 0,
+        "lastCrime": 0,
+        "lastSlut": 0
+      },
+      "gacha": {
+        "characters": [],
+        "lastClaim": 0,
+        "votes": {}
+      },
+      "stats": {
+        "messages": 2,
+        "commands": 0
+      },
+      "monedas": 0,
+      "antirobo": 0,
+      "desbloqueo": 0
+    }
+  },
+  "groups": {
+    "120363403874960157@g.us": {
+      "settings": {
+        "antilink": false,
+        "welcome": false,
+        "economy": true,
+        "porn": false,
+        "alerts": false
+      },
+      "banned": []
+    },
+    "120363425971920781@g.us": {
+      "settings": {
+        "antilink": false,
+        "welcome": false,
+        "economy": true,
+        "porn": false,
+        "alerts": false
+      },
+      "banned": []
+    }
+  },
+  "waifus": {},
+  "economy": {},
+  "gacha": {},
+  "cooldowns": {}
+}
