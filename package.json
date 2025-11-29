@@ -33,6 +33,7 @@
     "lowdb": "^7.0.1",
     "nanoid": "^5.1.6",
     "node-cache": "^5.1.2",
+    "node-fetch": "^3.2.10",
     "opossum": "^9.0.0",
     "pino": "^10.1.0",
     "prisma": "^7.0.0",
