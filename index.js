@@ -8,6 +8,8 @@ import GachaService from './lib/GachaService.js';
 import StreamManager from './lib/StreamManager.js';
 import QueueManager from './lib/QueueManager.js';
 import CacheManager from './lib/CacheManager.js';
+import { MessageHandler } from './lib/MessageHandler.js';
+import { WelcomeHandler } from './lib/WelcomeHandler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,6 +41,11 @@ global.queueManager = queueManager;
 global.cacheManager = cacheManager;
 global.commandMap = new Map();
 global.beforeHandlers = [];
+
+// Initialize Handlers
+const messageHandler = new MessageHandler(dbService, gachaService, streamManager, queueManager, cacheManager);
+const welcomeHandler = new WelcomeHandler(dbService);
+global.messageHandler = messageHandler;
 
 await gachaService.load();
 
@@ -99,157 +106,16 @@ bot.on('open', (account) => {
     console.log('✅ Conexión exitosa!');
     console.log(`📱 Bot conectado: ${account.name || 'Kaoruko Waguri'}`);
 
+    // Message Handler
     bot.ws.ev.on('messages.upsert', async ({ messages, type }) => {
-        // console.log(`📨 Received ${messages.length} messages, type: ${type}`);
-
         for (const m of messages) {
-            try {
-                // Skip own messages
-                if (!m.message || m.key.fromMe) {
-                    continue;
-                }
-
-                const chatId = m.key.remoteJid;
-                let sender = m.key.participant || m.key.remoteJid;
-
-                // Convert LID to normal JID if needed
-                if (sender.includes('@lid')) {
-                    const lidMatch = sender.match(/^(\d+)/);
-                    if (lidMatch) {
-                        const lidNumber = lidMatch[1];
-                        sender = `${lidNumber}@s.whatsapp.net`;
-                    }
-                }
-
-                const isGroup = chatId.endsWith('@g.us');
-
-                // Extract text
-                const messageType = Object.keys(m.message)[0];
-                let text = '';
-                if (messageType === 'conversation') {
-                    text = m.message.conversation;
-                } else if (messageType === 'extendedTextMessage') {
-                    text = m.message.extendedTextMessage?.text || '';
-                } else if (messageType === 'imageMessage') {
-                    text = m.message.imageMessage?.caption || '';
-                } else if (messageType === 'videoMessage') {
-                    text = m.message.videoMessage?.caption || '';
-                }
-
-                // Build context EARLY
-                const ctx = {
-                    bot: {
-                        sendMessage: async (jid, content, options) => {
-                            return await bot.ws.sendMessage(jid, content, options);
-                        },
-                        sock: bot.ws,
-                        groupMetadata: async (jid) => {
-                            return await bot.ws.groupMetadata(jid);
-                        },
-                        groupParticipantsUpdate: async (jid, participants, action) => {
-                            return await bot.ws.groupParticipantsUpdate(jid, participants, action);
-                        }
-                    },
-                    msg: m,
-                    sender: sender,
-                    chatId: chatId,
-                    isGroup: isGroup,
-                    body: text,
-                    text: text, // Alias for compatibility
-                    args: [],
-                    userData: dbService.getUser(sender),
-                    dbService: dbService,
-                    gachaService: gachaService,
-                    streamManager: streamManager,
-                    queueManager: queueManager,
-                    cacheManager: cacheManager,
-                    from: {
-                        id: sender,
-                        jid: sender,
-                        name: m.pushName || 'Usuario'
-                    },
-                    reply: async (text, options = {}) => {
-                        return await bot.ws.sendMessage(chatId, { text, ...options }, { quoted: m });
-                    },
-                    replyWithAudio: async (url, options = {}) => {
-                        return await bot.ws.sendMessage(chatId, {
-                            audio: { url },
-                            mimetype: options.mimetype || 'audio/mpeg',
-                            fileName: options.fileName
-                        }, { quoted: m });
-                    },
-                    replyWithVideo: async (url, options = {}) => {
-                        return await bot.ws.sendMessage(chatId, {
-                            video: { url },
-                            caption: options.caption,
-                            fileName: options.fileName
-                        }, { quoted: m });
-                    },
-                    replyWithImage: async (url, options = {}) => {
-                        return await bot.ws.sendMessage(chatId, {
-                            image: { url },
-                            caption: options.caption
-                        }, { quoted: m });
-                    },
-                    download: async (message) => {
-                        // Import dynamically to avoid top-level dependency issues if possible, 
-                        // or assume it's available since we saw it in node_modules
-                        const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
-                        return await downloadMediaMessage(message || m, 'buffer', {}, {
-                            logger: console,
-                            reuploadRequest: bot.ws.updateMediaMessage
-                        });
-                    },
-                    prefix: PREFIX
-                };
-
-                // 1. Run 'before' handlers from all plugins
-                // Optimization: Use pre-calculated array
-                for (const { handler, plugin } of global.beforeHandlers) {
-                    try {
-                        await handler(ctx);
-                    } catch (err) {
-                        console.error(`Error in before handler for ${plugin}:`, err);
-                    }
-                }
-
-                // 2. Process Commands
-                const PREFIXES = ['/', '!', '#'];
-                const prefix = PREFIXES.find(p => text.startsWith(p));
-
-                if (!text || !prefix) {
-                    continue;
-                }
-
-                // Parse command and args
-                const args = text.slice(prefix.length).trim().split(/\s+/);
-                const commandName = args.shift()?.toLowerCase();
-                ctx.args = args;
-                ctx.command = commandName;
-
-                if (!commandName) continue;
-
-                // Find command
-                const commandData = global.commandMap.get(commandName);
-                if (!commandData) {
-                    continue;
-                }
-
-                // Execute plugin
-                // console.log(`✨ Ejecutando comando: ${commandName} de ${ctx.from.name}`);
-                await commandData.execute(ctx);
-                // console.log(`✅ Comando ${commandName} ejecutado exitosamente`);
-
-            } catch (error) {
-                console.error('ꕤ Error procesando mensaje:', error);
-                const chatId = m.key.remoteJid;
-                try {
-                    await bot.ws.sendMessage(chatId, {
-                        text: 'ꕤ Ocurrió un error al ejecutar el comando.'
-                    }, { quoted: m });
-                } catch { }
-            }
+            await messageHandler.handleMessage(bot, m);
         }
+    });
+
+    // Group Participants Handler (Welcome/Goodbye)
+    bot.ws.ev.on('group-participants.update', async (event) => {
+        await welcomeHandler.handle(bot.ws, event);
     });
 });
 
