@@ -16,27 +16,11 @@ import { WelcomeHandler } from './lib/WelcomeHandler.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// ─────────────────────────────
-// Baileys Silencer (SOLO ERRORES)
-// ─────────────────────────────
-const logger = pino({
-  level: 'fatal'
-})
+const logger = pino({ level: 'fatal' })
 
-// ─────────────────────────────
-// Global Error Handlers
-// ─────────────────────────────
-process.on('uncaughtException', (err) => {
-  console.error('🔥 Uncaught Exception:', err)
-})
+process.on('uncaughtException', err => console.error(err))
+process.on('unhandledRejection', (r, p) => console.error(r))
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('🔥 Unhandled Rejection at:', promise, 'reason:', reason)
-})
-
-// ─────────────────────────────
-// Services Initialization
-// ─────────────────────────────
 const dbService = new DatabaseService()
 const gachaService = new GachaService()
 const streamManager = new StreamManager()
@@ -52,9 +36,6 @@ global.cacheManager = cacheManager
 global.commandMap = new Map()
 global.beforeHandlers = []
 
-// ─────────────────────────────
-// Handlers
-// ─────────────────────────────
 const messageHandler = new MessageHandler(
   dbService,
   gachaService,
@@ -68,115 +49,80 @@ global.messageHandler = messageHandler
 
 await gachaService.load()
 
-// ─────────────────────────────
-// Bot Configuration
-// ─────────────────────────────
 const UUID = '1f1332f4-7c2a-4b88-b4ca-bd56d07ed713'
-const auth = new LocalAuth(UUID, 'kaoruko-session')
+const sessionDir = 'kaoruko-session'
+const auth = new LocalAuth(UUID, sessionDir)
 
-const account = {
-  jid: '',
-  pn: '',
-  name: ''
-}
+const account = { jid: '', pn: '', name: '' }
 
-const OWNER_JID = '573115434166@s.whatsapp.net'
-const PREFIX = '#'
+const bot = new Bot(UUID, auth, account, { logger })
 
-// 👇 Silenciador aplicado aquí
-const bot = new Bot(UUID, auth, account, {
-  logger
-})
-
-// ─────────────────────────────
-// Plugin Loader
-// ─────────────────────────────
 const pluginsDir = path.join(__dirname, 'plugins')
 const pluginFiles = fs.readdirSync(pluginsDir).filter(f => f.endsWith('.js'))
-
-console.log(`ꕤ Cargando ${pluginFiles.length} plugins...`)
 
 for (const file of pluginFiles) {
   try {
     const filePath = pathToFileURL(path.join(pluginsDir, file)).href
     const plugin = await import(filePath)
-    const pluginExport = plugin.default
-
-    if (!pluginExport || !pluginExport.commands) continue
-
-    if (typeof pluginExport.before === 'function') {
-      global.beforeHandlers.push({
-        plugin: file,
-        handler: pluginExport.before
-      })
+    const data = plugin.default
+    if (!data || !data.commands) continue
+    if (typeof data.before === 'function') {
+      global.beforeHandlers.push({ plugin: file, handler: data.before })
     }
-
-    for (const cmd of pluginExport.commands) {
-      global.commandMap.set(cmd, {
-        execute: pluginExport.execute,
-        plugin: file
-      })
+    for (const cmd of data.commands) {
+      global.commandMap.set(cmd, { execute: data.execute, plugin: file })
     }
-
-    console.log(`ꕥ Plugin cargado: ${file}`)
-  } catch (err) {
-    console.error(`ꕤ Error cargando plugin ${file}:`, err.message)
-  }
+  } catch {}
 }
 
-// ─────────────────────────────
-// Events
-// ─────────────────────────────
-console.log('📌 Registrando event handlers...')
-
-bot.on('qr', async (qr) => {
-  console.log('\n✨ Escanea este código QR con WhatsApp ✨\n')
-  const qrString = await QRCode.toString(qr, {
-    type: 'terminal',
-    small: true
-  })
+bot.on('qr', async qr => {
+  const qrString = await QRCode.toString(qr, { type: 'terminal', small: true })
   console.log(qrString)
 })
 
-bot.on('open', (account) => {
-  console.log('🎉 EVENTO OPEN DISPARADO!')
-  console.log('✅ Conexión exitosa!')
-  console.log(`📱 Bot conectado: ${account.name || 'Kaoruko Waguri'}`)
-
+bot.on('open', account => {
   bot.ws.ev.on('messages.upsert', async ({ messages }) => {
     for (const m of messages) {
       await messageHandler.handleMessage(bot, m)
     }
   })
 
-  bot.ws.ev.on('group-participants.update', async (event) => {
+  bot.ws.ev.on('group-participants.update', async event => {
     await welcomeHandler.handle(bot.ws, event)
   })
 })
 
-bot.on('close', (reason) => {
-  console.log('⚠️ Conexión cerrada:', reason)
-})
+bot.on('error', err => console.error(err))
 
-bot.on('error', (err) => {
-  console.error('❌ Error del bot:', err)
-})
+const backupDir = path.join(__dirname, 'backup')
+if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir)
 
-// ─────────────────────────────
-// Graceful Shutdown
-// ─────────────────────────────
-const gracefulShutdown = async (signal) => {
-  console.log(`\n${signal} recibido. Cerrando correctamente...`)
+const backupSession = () => {
+  const creds = path.join(sessionDir, 'creds.json')
+  if (!fs.existsSync(creds)) return
+  const name = `creds-${Date.now()}.json`
+  fs.copyFileSync(creds, path.join(backupDir, name))
+  const files = fs.readdirSync(backupDir).sort()
+  while (files.length > 3) {
+    fs.unlinkSync(path.join(backupDir, files.shift()))
+  }
+}
+
+setInterval(async () => {
+  if (global.db) await dbService.save()
+}, 30000)
+
+setInterval(() => {
+  backupSession()
+}, 300000)
+
+const shutdown = async () => {
   await dbService.gracefulShutdown()
   await gachaService.gracefulShutdown()
   process.exit(0)
 }
 
-process.on('SIGINT', () => gracefulShutdown('SIGINT'))
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+process.on('SIGINT', shutdown)
+process.on('SIGTERM', shutdown)
 
-// ─────────────────────────────
-// Start Bot
-// ─────────────────────────────
-console.log('🚀 Iniciando bot con @imjxsx/wapi...')
 await bot.login('qr')
