@@ -14,6 +14,7 @@ import { ShopService } from './lib/ShopService.js';
 import { LevelService } from './lib/LevelService.js';
 import { MessageHandler } from './lib/MessageHandler.js';
 import { WelcomeHandler } from './lib/WelcomeHandler.js';
+import { setupCommandWorker } from './workers/commandWorker.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -159,4 +160,18 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 // --- Start Bot ---
 console.log('🚀 Iniciando bot con @imjxsx/wapi...');
 await bot.login('qr');
+
+// --- Setup Command Worker ---
+const services = {
+    dbService,
+    gachaService,
+    streamManager,
+    queueManager,
+    cacheManager,
+    tokenService,
+    prembotManager,
+    shopService,
+    levelService
+};
+setupCommandWorker(bot, services);
 
