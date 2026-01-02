@@ -6,8 +6,6 @@ export default {
     async execute(ctx) {
         const senderNumber = ctx.sender.split('@')[0];
         const username = ctx.from?.name || senderNumber;
-
-        // Detectar si es un prembot y cargar configuración personalizada
         const tokenService = ctx.tokenService;
         const userId = ctx.senderPhone ? `${ctx.senderPhone}@s.whatsapp.net` : ctx.sender;
         const prembotConfig = tokenService?.getPrembotConfig?.(userId);
@@ -326,7 +324,7 @@ export default {
                         externalAdReply: {
                             title: "Hatsune Miku",
                             body: "Developed By Soblend Development Studio",
-                            thumbnail: "https://rogddqelmxyuvhpjvxbf.supabase.co/storage/v1/object/public/files/qe3lq8yjdwh.jpg",
+                            thumbnail: "https://files.catbox.moe/o6v8ne.jpg",
                             mediaType: 1,
                             sourceUrl: "https://bright-light.pages.dev",
                             renderLargerThumbnail: true
