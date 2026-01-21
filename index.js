@@ -1,3 +1,6 @@
+process.env.LOG_LEVEL = 'error'
+process.env.DEBUG = ''
+
 import QRCode from 'qrcode'
 import { Bot, LocalAuth } from '@imjxsx/wapi'
 import fs from 'fs'
@@ -16,8 +19,6 @@ import { LevelService } from './lib/LevelService.js'
 import { MessageHandler } from './lib/MessageHandler.js'
 import { WelcomeHandler } from './lib/WelcomeHandler.js'
 import { setupCommandWorker } from './workers/commandWorker.js'
-
-process.env.NODE_OPTIONS = '--no-deprecation'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
