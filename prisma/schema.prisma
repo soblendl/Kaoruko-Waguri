@@ -7,163 +7,132 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum CharacterRarity {
-  COMMON
-  RARE
-  EPIC
-  LEGENDARY
-}
-
-enum ModerationLevel {
-  LOW
-  MEDIUM
-  HIGH
-}
-
-enum TransactionType {
-  PLUGIN_PURCHASE
-  PLUGIN_REVENUE
-  ECONOMY
-  GACHA
-}
-
-enum SubBotStatus {
-  ACTIVE
-  INACTIVE
-  SUSPENDED
-}
-
 model User {
-  id            String   @id
-  coins         Int      @default(0)
-  bank          Int      @default(0)
-  lastDaily     BigInt   @default(0)
-  lastWork      BigInt   @default(0)
-  lastCrime     BigInt   @default(0)
-  lastSlut      BigInt   @default(0)
-  messagesCount Int      @default(0)
-  commandsCount Int      @default(0)
-  antirobo      Int      @default(0)
-  desbloqueo    Int      @default(0)
-  seasonId      String?
-  guildId       String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  characters    Character[]
-  transactions  Transaction[]
-  guild         Guild?   @relation(fields: [guildId], references: [id])
-  season        Season?  @relation(fields: [seasonId], references: [id])
-
+  id              String   @id
+  coins           Int      @default(0)
+  bank            Int      @default(0)
+  lastDaily       BigInt   @default(0)
+  lastWork        BigInt   @default(0)
+  lastCrime       BigInt   @default(0)
+  lastSlut        BigInt   @default(0)
+  messagesCount   Int      @default(0)
+  commandsCount   Int      @default(0)
+  antirobo        Int      @default(0)
+  desbloqueo      Int      @default(0)
+  currentSeason   String?
+  guildId         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  characters      Character[]
+  transactions    Transaction[]
+  guild           Guild?     @relation(fields: [guildId], references: [id])
+  
   @@index([guildId])
-  @@index([seasonId])
 }
 
 model Character {
-  id          String          @id @default(cuid())
+  id          String   @id @default(cuid())
   userId      String
   characterId String
   name        String
-  rarity      CharacterRarity
+  rarity      String
   imageUrl    String?
   videoUrl    String?
   claimedAt   BigInt
-  votes       Int             @default(0)
-  locked      Boolean         @default(false)
-
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  votes       Int      @default(0)
+  locked      Boolean  @default(false)
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   @@index([userId])
   @@index([characterId])
 }
 
 model Group {
-  id              String           @id
-  antilink        Boolean          @default(false)
-  welcome         Boolean          @default(false)
-  economy         Boolean          @default(true)
-  porn            Boolean          @default(false)
-  alerts          Boolean          @default(false)
-  aiModeration    Boolean          @default(false)
-  moderationLevel ModerationLevel  @default(MEDIUM)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-
+  id              String   @id
+  antilink        Boolean  @default(false)
+  welcome         Boolean  @default(false)
+  economy         Boolean  @default(true)
+  porn            Boolean  @default(false)
+  alerts          Boolean  @default(false)
+  aiModeration    Boolean  @default(false)
+  moderationLevel String   @default("medium")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
   bannedUsers     BannedUser[]
 }
 
 model BannedUser {
-  id       String   @id @default(cuid())
-  userId   String
-  groupId  String
-  reason   String?
-  bannedAt DateTime @default(now())
-
-  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  reason    String?
+  bannedAt  DateTime @default(now())
+  
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
   @@unique([userId, groupId])
   @@index([groupId])
 }
 
 model Transaction {
-  id          String          @id @default(cuid())
+  id          String   @id @default(cuid())
   userId      String
-  type        TransactionType
+  type        String
   amount      Int
   description String?
-  timestamp   DateTime        @default(now())
-  seasonId    String?
-
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  season      Season?         @relation(fields: [seasonId], references: [id])
-
+  timestamp   DateTime @default(now())
+  season      String?
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   @@index([userId])
-  @@index([seasonId])
+  @@index([season])
   @@index([timestamp])
 }
 
 model Guild {
-  id         String   @id @default(cuid())
-  name       String
-  tag        String   @unique
-  ownerId    String   @unique
-  level      Int      @default(1)
-  experience Int      @default(0)
-  treasury   Int      @default(0)
-  maxMembers Int      @default(10)
-  createdAt  DateTime @default(now())
-
-  members    User[]
-
+  id          String   @id @default(cuid())
+  name        String
+  tag         String   @unique
+  ownerId     String   @unique
+  level       Int      @default(1)
+  experience  Int      @default(0)
+  treasury    Int      @default(0)
+  maxMembers  Int      @default(10)
+  createdAt   DateTime @default(now())
+  
+  members     User[]
+  
   @@index([tag])
 }
 
 model SubBot {
-  id          String        @id @default(cuid())
+  id          String   @id @default(cuid())
   ownerId     String
-  phoneNumber String        @unique
-  sessionId   String        @unique
-  status      SubBotStatus  @default(INACTIVE)
-  createdAt   DateTime      @default(now())
-  lastActive  DateTime      @default(now())
-  quota       Int           @default(1000)
-  usedQuota   Int           @default(0)
-
+  phoneNumber String   @unique
+  sessionId   String   @unique
+  status      String   @default("inactive")
+  createdAt   DateTime @default(now())
+  lastActive  DateTime @default(now())
+  quota       Int      @default(1000)
+  usedQuota   Int      @default(0)
+  
   @@index([ownerId])
   @@index([status])
 }
 
 model Season {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  startDate DateTime
-  endDate   DateTime
-  active    Boolean  @default(true)
-  rewards   String
-
-  users     User[]
-  txs       Transaction[]
-
+  id          String   @id @default(cuid())
+  name        String   @unique
+  startDate   DateTime
+  endDate     DateTime
+  active      Boolean  @default(true)
+  
+  rewards     String
+  
   @@index([active])
 }
 
@@ -177,8 +146,8 @@ model Plugin {
   rating      Float    @default(0)
   code        String
   enabled     Boolean  @default(true)
-  createdAt  DateTime @default(now())
-
+  createdAt   DateTime @default(now())
+  
   @@index([authorId])
   @@index([enabled])
 }
