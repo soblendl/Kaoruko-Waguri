@@ -1,136 +1,150 @@
 export class EconomySeason {
-  constructor(dbService) {
-    this.dbService = dbService
-    this.currentSeason = null
-    this.loadCurrentSeason()
-  }
-
-  loadCurrentSeason() {
-    const season = this.dbService.getCurrentSeason()
-    if (season) {
-      this.currentSeason = season
-      return
-    }
-    this.createDefaultSeason()
-  }
-
-  createDefaultSeason() {
-    const now = new Date()
-    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-
-    this.currentSeason = this.dbService.createSeason(
-      `Temporada ${now.getMonth() + 1}/${now.getFullYear()}`,
-      now.getTime(),
-      endDate.getTime(),
-      {
-        top1: { coins: 100000, badge: '🏆' },
-        top2: { coins: 75000, badge: '🥈' },
-        top3: { coins: 50000, badge: '🥉' },
-        top10: { coins: 25000, badge: '⭐' }
-      }
-    )
-  }
-
-  async getSeasonLeaderboard(limit = 50) {
-    if (!this.currentSeason) return []
-    return this.dbService.getLeaderboard(this.currentSeason.id, limit)
-  }
-
-  async getUserRank(userId) {
-    const leaderboard = await this.getSeasonLeaderboard(1000)
-    const total = leaderboard.length
-    if (!total) return { rank: null, total: 0, percentile: 0 }
-
-    const index = leaderboard.findIndex(u => u.id === userId)
-    if (index === -1) {
-      return { rank: null, total, percentile: 0 }
+    constructor(dbService) {
+        this.dbService = dbService;
+        this.currentSeason = null;
+        this.loadCurrentSeason();
     }
 
-    return {
-      rank: index + 1,
-      total,
-      percentile: (((total - index) / total) * 100).toFixed(1)
-    }
-  }
-
-  async endSeason() {
-    if (!this.currentSeason) return null
-
-    const leaderboard = await this.getSeasonLeaderboard(100)
-    const rewards = this.currentSeason.rewards
-    const results = {
-      season: this.currentSeason.name,
-      endDate: Date.now(),
-      winners: []
+    loadCurrentSeason() {
+        this.currentSeason = this.dbService.getCurrentSeason();
+        if (!this.currentSeason) {
+            this.createDefaultSeason();
+        }
     }
 
-    for (let i = 0; i < leaderboard.length; i++) {
-      const entry = leaderboard[i]
-      let reward = null
+    createDefaultSeason() {
+        const now = new Date();
+        const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-      if (i === 0 && rewards.top1) reward = rewards.top1
-      else if (i === 1 && rewards.top2) reward = rewards.top2
-      else if (i === 2 && rewards.top3) reward = rewards.top3
-      else if (i < 10 && rewards.top10) reward = rewards.top10
+        this.currentSeason = this.dbService.createSeason(
+            `Temporada ${now.getMonth() + 1}/${now.getFullYear()}`,
+            now.getTime(),
+            endDate.getTime(),
+            {
+                top1: { coins: 100000, badge: '🏆' },
+                top2: { coins: 75000, badge: '🥈' },
+                top3: { coins: 50000, badge: '🥉' },
+                top10: { coins: 25000, badge: '⭐' }
+            }
+        );
 
-      if (!reward) continue
-
-      const user = await this.dbService.getUser(entry.id)
-      user.economy.coins += reward.coins
-      user.badges = user.badges || []
-      user.badges.push({
-        season: this.currentSeason.name,
-        rank: i + 1,
-        badge: reward.badge
-      })
-
-      this.dbService.updateUser(entry.id, user)
-
-      results.winners.push({
-        userId: entry.id,
-        rank: i + 1,
-        reward
-      })
+        console.log(`ִ𖤐 Nueva temporada creada: ${this.currentSeason.name}`);
     }
 
-    this.currentSeason.active = false
-    this.createDefaultSeason()
+    async getSeasonLeaderboard(limit = 50) {
+        if (!this.currentSeason) return [];
 
-    return results
-  }
-
-  getTimeRemaining() {
-    if (!this.currentSeason) return null
-
-    const remaining = this.currentSeason.endDate - Date.now()
-    if (remaining <= 0) return { expired: true }
-
-    const days = Math.floor(remaining / 86400000)
-    const hours = Math.floor((remaining % 86400000) / 3600000)
-
-    return {
-      expired: false,
-      days,
-      hours,
-      total: remaining
+        return await this.dbService.getLeaderboard(this.currentSeason.name, limit);
     }
-  }
 
-  async getSeasonStats() {
-    if (!this.currentSeason) return null
+    async getUserRank(userId) {
+        const leaderboard = await this.getSeasonLeaderboard(1000);
+        const userIndex = leaderboard.findIndex(u => u.id === userId);
 
-    const leaderboard = await this.getSeasonLeaderboard(1000)
-    const participants = leaderboard.length
-    const totalCoins = leaderboard.reduce((s, u) => s + (u.coins || 0), 0)
+        if (userIndex === -1) {
+            return {
+                rank: null,
+                total: leaderboard.length,
+                percentile: 0
+            };
+        }
 
-    return {
-      name: this.currentSeason.name,
-      startDate: this.currentSeason.startDate,
-      endDate: this.currentSeason.endDate,
-      participants,
-      totalCoins,
-      averageCoins: participants ? Math.floor(totalCoins / participants) : 0,
-      timeRemaining: this.getTimeRemaining()
+        return {
+            rank: userIndex + 1,
+            total: leaderboard.length,
+            percentile: ((leaderboard.length - userIndex) / leaderboard.length * 100).toFixed(1)
+        };
     }
-  }
+
+    async endSeason() {
+        if (!this.currentSeason) return null;
+
+        const leaderboard = await this.getSeasonLeaderboard(100);
+        const rewards = this.currentSeason.rewards;
+
+        const results = {
+            season: this.currentSeason.name,
+            endDate: Date.now(),
+            winners: []
+        };
+
+        for (let i = 0; i < leaderboard.length; i++) {
+            const user = leaderboard[i];
+            let reward = null;
+
+            if (i === 0 && rewards.top1) {
+                reward = rewards.top1;
+            } else if (i === 1 && rewards.top2) {
+                reward = rewards.top2;
+            } else if (i === 2 && rewards.top3) {
+                reward = rewards.top3;
+            } else if (i < 10 && rewards.top10) {
+                reward = rewards.top10;
+            }
+
+            if (reward) {
+                const userData = await this.dbService.getUser(user.id);
+                userData.economy.coins += reward.coins;
+
+                if (!userData.badges) userData.badges = [];
+                userData.badges.push({
+                    season: this.currentSeason.name,
+                    rank: i + 1,
+                    badge: reward.badge
+                });
+
+                this.dbService.updateUser(user.id, userData);
+
+                results.winners.push({
+                    userId: user.id,
+                    rank: i + 1,
+                    reward
+                });
+            }
+        }
+
+        this.currentSeason.active = false;
+        this.createDefaultSeason();
+
+        return results;
+    }
+
+    getTimeRemaining() {
+        if (!this.currentSeason) return null;
+
+        const now = Date.now();
+        const end = this.currentSeason.endDate;
+        const remaining = end - now;
+
+        if (remaining <= 0) {
+            return { expired: true };
+        }
+
+        const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+        return {
+            expired: false,
+            days,
+            hours,
+            total: remaining
+        };
+    }
+
+    async getSeasonStats() {
+        if (!this.currentSeason) return null;
+
+        const leaderboard = await this.getSeasonLeaderboard(1000);
+        const totalCoins = leaderboard.reduce((sum, u) => sum + u.coins, 0);
+
+        return {
+            name: this.currentSeason.name,
+            startDate: this.currentSeason.startDate,
+            endDate: this.currentSeason.endDate,
+            participants: leaderboard.length,
+            totalCoins,
+            averageCoins: Math.floor(totalCoins / leaderboard.length),
+            timeRemaining: this.getTimeRemaining()
+        };
+    }
 }

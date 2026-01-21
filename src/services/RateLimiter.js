@@ -1,142 +1,156 @@
-import { RateLimiterMemory, RateLimiterRedis } from 'rate-limiter-flexible'
-import CircuitBreaker from 'opossum'
-import Redis from 'ioredis'
+import { RateLimiterMemory, RateLimiterRedis } from 'rate-limiter-flexible';
+import CircuitBreaker from 'opossum';
+import Redis from 'ioredis';
 
 export class RateLimiter {
-  constructor() {
-    this.limiters = {}
-    this.circuitBreakers = {}
-    this.redis = null
-    this.initLimiters()
-    this.initCircuitBreakers()
-  }
-
-  initLimiters() {
-    try {
-      const redisUrl = process.env.REDIS_URL
-      if (redisUrl) {
-        this.redis = new Redis(redisUrl, { enableOfflineQueue: false })
-
-        this.limiters.commands = new RateLimiterRedis({
-          storeClient: this.redis,
-          keyPrefix: 'rl:cmd',
-          points: 10,
-          duration: 10,
-          blockDuration: 30
-        })
-
-        this.limiters.economy = new RateLimiterRedis({
-          storeClient: this.redis,
-          keyPrefix: 'rl:eco',
-          points: 5,
-          duration: 60,
-          blockDuration: 120
-        })
-      } else {
-        this.limiters.commands = new RateLimiterMemory({
-          points: 10,
-          duration: 10,
-          blockDuration: 30
-        })
-
-        this.limiters.economy = new RateLimiterMemory({
-          points: 5,
-          duration: 60,
-          blockDuration: 120
-        })
-      }
-    } catch {
-      this.limiters.commands = new RateLimiterMemory({
-        points: 10,
-        duration: 10,
-        blockDuration: 30
-      })
-
-      this.limiters.economy = new RateLimiterMemory({
-        points: 5,
-        duration: 60,
-        blockDuration: 120
-      })
-    }
-  }
-
-  initCircuitBreakers() {
-    const options = {
-      timeout: 10000,
-      errorThresholdPercentage: 50,
-      resetTimeout: 30000,
-      rollingCountTimeout: 10000,
-      rollingCountBuckets: 10
+    constructor() {
+        this.limiters = {};
+        this.circuitBreakers = {};
+        this.redis = null;
+        this.initLimiters();
+        this.initCircuitBreakers();
     }
 
-    this.circuitBreakers.scraper = new CircuitBreaker(
-      async () => null,
-      options
-    )
+    initLimiters() {
+        try {
+            const redisUrl = process.env.REDIS_URL;
+            if (redisUrl) {
+                const redisClient = new Redis(redisUrl, {
+                    enableOfflineQueue: false
+                });
 
-    this.circuitBreakers.api = new CircuitBreaker(
-      async () => null,
-      options
-    )
-  }
+                this.limiters.commands = new RateLimiterRedis({
+                    storeClient: redisClient,
+                    keyPrefix: 'rl:cmd',
+                    points: 10,
+                    duration: 10,
+                    blockDuration: 30
+                });
 
-  async checkCommandLimit(userId) {
-    try {
-      await this.limiters.commands.consume(userId)
-      return { allowed: true }
-    } catch (e) {
-      if (e.msBeforeNext !== undefined) {
-        const wait = Math.ceil(e.msBeforeNext / 1000)
-        return {
-          allowed: false,
-          retryAfter: wait,
-          message: `Límite de comandos alcanzado. Espera ${wait}s`
+                this.limiters.economy = new RateLimiterRedis({
+                    storeClient: redisClient,
+                    keyPrefix: 'rl:eco',
+                    points: 5,
+                    duration: 60,
+                    blockDuration: 120
+                });
+
+                console.log('✅ Rate limiters con Redis configurados');
+            } else {
+                this.limiters.commands = new RateLimiterMemory({
+                    points: 10,
+                    duration: 10,
+                    blockDuration: 30
+                });
+
+                this.limiters.economy = new RateLimiterMemory({
+                    points: 5,
+                    duration: 60,
+                    blockDuration: 120
+                });
+
+                console.log('✅ Rate limiters en memoria configurados');
+            }
+        } catch (error) {
+            console.error('Error configurando rate limiters:', error.message);
         }
-      }
-      throw e
     }
-  }
 
-  async checkEconomyLimit(userId) {
-    try {
-      await this.limiters.economy.consume(userId)
-      return { allowed: true }
-    } catch (e) {
-      if (e.msBeforeNext !== undefined) {
-        const wait = Math.ceil(e.msBeforeNext / 1000)
-        return {
-          allowed: false,
-          retryAfter: wait,
-          message: `Límite de acciones económicas alcanzado. Espera ${wait}s`
+    initCircuitBreakers() {
+        const options = {
+            timeout: 10000,
+            errorThresholdPercentage: 50,
+            resetTimeout: 30000,
+            rollingCountTimeout: 10000,
+            rollingCountBuckets: 10
+        };
+
+        this.circuitBreakers.scraper = new CircuitBreaker(this.scraperFunction, options);
+        this.circuitBreakers.api = new CircuitBreaker(this.apiFunction, options);
+
+        this.circuitBreakers.scraper.on('open', () => {
+            console.warn('⚠️ Circuit breaker abierto para scraper - demasiados errores');
+        });
+
+        this.circuitBreakers.scraper.on('halfOpen', () => {
+            console.log('🔄 Circuit breaker en half-open para scraper - probando recuperación');
+        });
+
+        this.circuitBreakers.scraper.on('close', () => {
+            console.log('✅ Circuit breaker cerrado para scraper - servicio recuperado');
+        });
+
+        console.log('✅ Circuit breakers configurados');
+    }
+
+    async scraperFunction(url, options) {
+        throw new Error('Función scraper no implementada');
+    }
+
+    async apiFunction(endpoint, options) {
+        throw new Error('Función API no implementada');
+    }
+
+    async checkCommandLimit(userId) {
+        try {
+            await this.limiters.commands.consume(userId);
+            return { allowed: true };
+        } catch (error) {
+            if (error.remainingPoints !== undefined) {
+                return {
+                    allowed: false,
+                    retryAfter: Math.ceil(error.msBeforeNext / 1000),
+                    message: `Límite de comandos alcanzado. Espera ${Math.ceil(error.msBeforeNext / 1000)}s`
+                };
+            }
+            throw error;
         }
-      }
-      throw e
     }
-  }
 
-  async executeWithCircuitBreaker(type, fn, ...args) {
-    const breaker = this.circuitBreakers[type]
-    if (!breaker) return fn(...args)
-
-    try {
-      return await breaker.fire(fn, ...args)
-    } catch (e) {
-      if (e.message === 'Breaker is open') {
-        throw new Error(`Servicio ${type} temporalmente no disponible`)
-      }
-      throw e
+    async checkEconomyLimit(userId) {
+        try {
+            await this.limiters.economy.consume(userId);
+            return { allowed: true };
+        } catch (error) {
+            if (error.remainingPoints !== undefined) {
+                return {
+                    allowed: false,
+                    retryAfter: Math.ceil(error.msBeforeNext / 1000),
+                    message: `Límite de acciones económicas alcanzado. Espera ${Math.ceil(error.msBeforeNext / 1000)}s`
+                };
+            }
+            throw error;
+        }
     }
-  }
 
-  getStats() {
-    const stats = {}
-    for (const [name, breaker] of Object.entries(this.circuitBreakers)) {
-      stats[name] = {
-        isOpen: breaker.opened,
-        isHalfOpen: breaker.halfOpen,
-        stats: breaker.status.stats
-      }
+    async executeWithCircuitBreaker(type, fn, ...args) {
+        const breaker = this.circuitBreakers[type];
+        
+        if (!breaker) {
+            return await fn(...args);
+        }
+
+        try {
+            return await breaker.fire(...args);
+        } catch (error) {
+            if (error.message === 'Breaker is open') {
+                throw new Error(`Servicio ${type} temporalmente no disponible. Intenta más tarde.`);
+            }
+            throw error;
+        }
     }
-    return stats
-  }
+
+    getStats() {
+        const stats = {};
+
+        for (const [name, breaker] of Object.entries(this.circuitBreakers)) {
+            stats[name] = {
+                state: breaker.status.stats,
+                isOpen: breaker.opened,
+                isHalfOpen: breaker.halfOpen
+            };
+        }
+
+        return stats;
+    }
 }
