@@ -286,19 +286,14 @@
     },
     "stats": {
       "messages": 0,
-      "commands": 1
+      "commands": 0
     },
     "createdAt": "2025-11-25T04:24:48.425Z",
     "monedas": 0,
     "antirobo": 0,
     "desbloqueo": 0,
     "__uuid": "2058c216-6c2f-4d07-85c5-c3f8be57b32e",
-    "updatedAt": "2025-12-31T07:28:08.191Z",
-    "level": {
-      "xp": 9,
-      "lvl": 1,
-      "lastXp": 0
-    }
+    "updatedAt": "2025-11-25T04:24:48.425Z"
   },
   {
     "id": "255619391082711@s.whatsapp.net",
@@ -591,37 +586,5 @@
     "desbloqueo": 0,
     "__uuid": "3d8c8833-b780-4d8b-9317-221b928348c7",
     "updatedAt": "2025-11-25T05:05:39.850Z"
-  },
-  {
-    "id": "33759170878@s.whatsapp.net",
-    "economy": {
-      "coins": 0,
-      "bank": 0,
-      "lastDaily": 0,
-      "lastWork": 0,
-      "lastCrime": 0,
-      "lastSlut": 0
-    },
-    "gacha": {
-      "characters": [],
-      "lastClaim": 0,
-      "votes": {}
-    },
-    "stats": {
-      "messages": 0,
-      "commands": 0
-    },
-    "level": {
-      "xp": 0,
-      "lvl": 1,
-      "lastXp": 0
-    },
-    "inventory": [],
-    "createdAt": "2025-12-31T07:27:31.729Z",
-    "monedas": 0,
-    "antirobo": 0,
-    "desbloqueo": 0,
-    "__uuid": "c187ceb9-9c32-44aa-88dd-bd2c704f7f5f",
-    "updatedAt": "2025-12-31T07:27:31.729Z"
   }
 ]

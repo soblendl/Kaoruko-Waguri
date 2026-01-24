@@ -119,7 +119,7 @@ export class SubBotOrchestrator {
                 // Usar el handler global
                 if (global.messageHandler) {
                     try {
-                        await global.messageHandler.handleMessage(bot, m, true); // true = isSubbot
+                        await global.messageHandler.handleMessage(bot, m, false, true); // false = isPrembot, true = isSubbot
                     } catch (err) {
                         this.logger.error(`[SubBot ${sessionId}] Handler error: ${err.message}`);
                     }

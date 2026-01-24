@@ -1,4 +1,4 @@
-import { styleText, styleMessage } from '../lib/utils.js';
+import { styleText } from '../lib/utils.js';
 import { ERRORS } from '../lib/constants.js';
 
 let wapiModule = null;
@@ -8,19 +8,15 @@ const getWapi = async () => {
     }
     return wapiModule;
 };
-
 export function setupCommandWorker(bot, services) {
     const queue = services.queueManager.getQueue('commandQueue');
-
     queue.process(async (job) => {
         const { commandName, ctxData } = job.data;
         const commandData = global.commandMap.get(commandName);
-
         if (!commandData) {
-            console.error(`Command worker: Command '${commandName}' not found.`);
+            console.error(`✿ Command worker: Command '${commandName}' not found.`);
             return;
         }
-
         const ctx = {
             ...ctxData,
             ...services,
@@ -36,30 +32,16 @@ export function setupCommandWorker(bot, services) {
                     return await bot.ws.groupParticipantsUpdate(jid, participants, action);
                 }
             },
-            reply: async (responseText, options = {}) => {
-                const styledOriginal = styleMessage(ctxData.msg.pushName || 'Usuario', ctxData.text);
-                const fullMessage = `${styledOriginal}\n\n${responseText}`;
-                return await bot.ws.sendMessage(ctxData.chatId, { text: fullMessage, ...options }, { quoted: ctxData.msg });
+            reply: async (text, options = {}) => {
+                return await bot.ws.sendMessage(ctxData.chatId, { text, ...options }, { quoted: ctxData.msg });
             },
             replyWithAudio: async (url, options = {}) => {
-                const styledOriginal = styleMessage(ctxData.msg.pushName || 'Usuario', ctxData.text);
-                if (options.caption) {
-                    options.caption = `${styledOriginal}\n\n${options.caption}`;
-                }
                 return await bot.ws.sendMessage(ctxData.chatId, { audio: { url }, mimetype: 'audio/mpeg', ...options }, { quoted: ctxData.msg });
             },
             replyWithVideo: async (url, options = {}) => {
-                const styledOriginal = styleMessage(ctxData.msg.pushName || 'Usuario', ctxData.text);
-                if (options.caption) {
-                    options.caption = `${styledOriginal}\n\n${options.caption}`;
-                }
                 return await bot.ws.sendMessage(ctxData.chatId, { video: { url }, ...options }, { quoted: ctxData.msg });
             },
             replyWithImage: async (url, options = {}) => {
-                const styledOriginal = styleMessage(ctxData.msg.pushName || 'Usuario', ctxData.text);
-                if (options.caption) {
-                    options.caption = `${styledOriginal}\n\n${options.caption}`;
-                }
                 return await bot.ws.sendMessage(ctxData.chatId, { image: { url }, ...options }, { quoted: ctxData.msg });
             },
             download: async (message) => {
@@ -75,23 +57,19 @@ export function setupCommandWorker(bot, services) {
                 return buffer;
             }
         };
-
         try {
             await commandData.execute(ctx);
-
             if (!ctx.userData.stats) ctx.userData.stats = {};
             ctx.userData.stats.commands = (ctx.userData.stats.commands || 0) + 1;
             services.dbService.markDirty();
-
         } catch (error) {
-            console.error(`Error executing command '${commandName}' in worker:`, error);
+            console.error(`✿ Error executing command '${commandName}' in worker:`, error);
             try {
                 await ctx.reply(styleText(ERRORS.GENERIC_ERROR));
             } catch (e) {
-                console.error(`Failed to send error reply for command '${commandName}':`, e);
+                console.error(`✿ Failed to send error reply for command '${commandName}':`, e);
             }
         }
     });
-
-    console.log('👷‍♂️ Command worker is ready to process jobs.');
+    console.log('👷✿ Command worker is ready to process jobs.');
 }
